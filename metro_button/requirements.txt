@@ -1,0 +1,5 @@
+flask==2.3.2
+fdb==2.0.2
+gunicorn==20.1.0
+wheel==0.40.0
+python-dotenv==1.0.0

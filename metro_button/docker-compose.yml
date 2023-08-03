@@ -1,0 +1,31 @@
+version: '3'
+services:
+#  flask:
+#    # Путь до Dockerfile
+#    build: .
+#    # Имя для создаваемого контейнера
+#    container_name: metro
+#    restart: on-failure
+#    # Прокладывам путь для файлов. Все файлы, которые хранятся у вас в
+#    # директории ./backend, появятся в директории контейнера /backend
+#    volumes:
+#      - ./:/backend
+#    # Открываем порт в контейнер
+#    # Порт, который будет смотреть наружу : порт который используется внутри контейнера
+#    ports:
+#      - "5000:80"
+#    command: gunicorn --bind 0.0.0.0:80 wsgi:app
+
+  firebird:
+    restart: always
+    image: jacobalberty/firebird:2.5-sc
+    container_name: firebird
+    ports:
+      - 3050:3050
+    volumes:
+      - /home/timofey/down:/firebird
+    environment:
+      - ISC_PASSWORD:masterkey
+#      - FIREBIRD_DATABASE:SYSINFOAUTO.FDB
+#      - FIREBIRD_USER:SYSDBA
+#      - FIREBIRD_PASSWORD:masterkey

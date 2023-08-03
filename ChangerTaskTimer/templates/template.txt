@@ -1,0 +1,10 @@
+[Unit]
+description={{ description }}
+requires={{ requires }}
+
+[Timer]
+oncalendar={{ oncalendar }}
+unit={{ unit }}
+
+[Install]
+wantedby={{ wantedby }}

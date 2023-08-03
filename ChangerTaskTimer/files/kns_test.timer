@@ -1,0 +1,11 @@
+[Unit]
+description = hello
+requires = kns.service
+
+[Timer]
+oncalendar = test
+unit = kns.service
+
+[Install]
+wantedby = timers.targetOnCalendar
+

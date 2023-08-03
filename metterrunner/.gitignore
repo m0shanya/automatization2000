@@ -1,0 +1,6 @@
+.venv/
+.idea/
+
+__pycahe__/
+*.py[cod]
+*&py.class
