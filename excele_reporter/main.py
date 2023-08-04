@@ -35,12 +35,8 @@ def get_data(numb: list, time: list) -> dict:
 
     with fdb.connect(**connection) as con:
         for element in numb:
-            # start_date = time[0]
-            # end_date = time[1]
-            # dates = pd.date_range(
-            #     min(start_date, end_date),
-            #     max(start_date, end_date)
-            # ).strftime('%Y-%m-%d').tolist()
+            dates = get_date(time)
+
             value = []
 
             cur = con.cursor()
@@ -48,39 +44,36 @@ def get_data(numb: list, time: list) -> dict:
             query = f"""SELECT * FROM L2HALF_HOURLY_ENERGY WHERE M_SWCMDID=13 AND 
             M_SDTDATE BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={element} ORDER BY M_SDTLASTTIME"""
             cur.execute(query)
-
-            # tmp_val = None
+            i = 0
+            j = 0
             for val in cur.fetchall():
-                # for item in dates:
-                #     dates.remove(item)
-                #     tmp = item.split("-")
-                #     if dt.datetime(int(tmp[0]), int(tmp[1]), int(tmp[2])) in val:
-                #         value += val[6:54]
-                #         break
-                #     else:
-                #         tmp_val = dlc * 57
-                #         value += tmp_val[6:54]
-                #         break
-                value += val[6:54]
-                res[f"vmid #{element}"] = value
+
+                for item in dates:
+                    if i - j > 0:
+                        item = dates[i - j]
+                    i += 1
+                    tmp = item.split("-")
+                    if dt.datetime(int(tmp[0]), int(tmp[1]), int(tmp[2])) == val[5]:
+                        j += 1
+                        dates.remove(item)
+                        value += val[6:54]
+                        break
+                    else:
+                        value = value + dlc * 57
+                        item = dates[i - j]
+
+            res[f"vmid #{element}"] = value
 
     return res
 
 
-def get_date(numb: list, time: list) -> list:
-    dates = []
-    with fdb.connect(**connection) as con:
-        for element in numb:
-            cur = con.cursor()
-            query_t = f"""SELECT M_SDTDATE FROM L2HALF_HOURLY_ENERGY WHERE M_SWCMDID=13 AND 
-            M_SDTDATE BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={element} ORDER BY M_SDTLASTTIME"""
-            cur.execute(query_t)
-            for item in cur.fetchall():
-                if item not in dates:
-                    dates = dates + [item]
-
-                if len(dates) == 23:
-                    break
+def get_date(time: list) -> list:
+    start_date = time[0]
+    end_date = time[1]
+    dates = pd.date_range(
+        min(start_date, end_date),
+        max(start_date, end_date)
+    ).strftime('%Y-%m-%d').tolist()
 
     return dates
 
@@ -93,7 +86,17 @@ def do_write(val: dict, time: list[str], list_of_dates: list):
 
 
 def security(dct_of_values: dict, spisok_dat: list):
-    max_len_list = len(min(sorted(dct_of_values.values())))
+    # max_len_list = len(min(sorted(dct_of_values.values())))
+    max_len_list = 0
+    for val in dct_of_values.values():
+        max_len_list = len(val)
+        break
+
+    for val in dct_of_values.values():
+        max_len = len(val)
+        if max_len > max_len_list:
+            max_len_list = max_len
+
     dlc = ["-"]
 
     for key in dct_of_values.keys():
@@ -104,8 +107,7 @@ def security(dct_of_values: dict, spisok_dat: list):
 
     spis_of_dates = []
     for item in spisok_dat:
-        temp = item[0].strftime('%Y-%m-%d')
-        spis_of_dates = spis_of_dates + [temp]*48
+        spis_of_dates = spis_of_dates + [item]*48
 
     dct_of_values["date"] = spis_of_dates
 
@@ -115,6 +117,6 @@ def security(dct_of_values: dict, spisok_dat: list):
 if __name__ == "__main__":
     time_list = ['2021-09-18 00:00:00', '2021-10-18 00:00:00']
     vmid_list = [34, 61]
-    dates = get_date(vmid_list, time_list)
+    dates = get_date(time_list)
     values = get_data(vmid_list, time_list)
     do_write(values, time_list, dates)
