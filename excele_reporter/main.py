@@ -2,9 +2,6 @@ import fdb
 import pandas as pd
 import datetime as dt
 
-from flask import Flask
-
-app = Flask(__name__)
 connection = {'host': 'localhost',
               'database': '/home/timofey/test.fdb',
               'user': 'SYSDBA',
@@ -18,15 +15,6 @@ time_dct = {"time": ["00:00-00:30", "00:30-01:00", "01:00-01:30", "01:30-02:00",
                      "15:00-15:30", "15:30-16:00", "16:00-16:30", "16:30-17:00", "17:00-17:30", "17:30-18:00",
                      "18:00-18:30", "18:30-19:00", "19:00-19:30", "19:30-20:00", "20:00-20:30", "20:30-21:00",
                      "21:00-21:30", "21:30-22:00", "22:00-22:30", "22:30-23:00", "23:00-23:30", "23:30-24:00"]}
-
-
-@app.route("/")
-def view():
-    try:
-        with fdb.connect(**connection) as con:
-            return print("success")
-    except Exception as e:
-        return print(e)
 
 
 def get_data(numb: list, time: list) -> dict:
@@ -59,7 +47,7 @@ def get_data(numb: list, time: list) -> dict:
                         value += val[6:54]
                         break
                     else:
-                        value = value + dlc * 57
+                        value = value + dlc * 48
                         item = dates[i - j]
 
             res[f"vmid #{element}"] = value
