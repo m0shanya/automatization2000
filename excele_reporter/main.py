@@ -1,12 +1,22 @@
+from dotenv import load_dotenv, find_dotenv
+
+import os
 import fdb
 import pandas as pd
 import datetime as dt
 
-connection = {'host': 'localhost',
-              'database': '/home/timofey/test.fdb',
-              'user': 'SYSDBA',
-              'password': 'masterkey',
-              'charset': 'WIN1251'
+load_dotenv(find_dotenv())
+FB_HOST = os.environ.get("FB_HOST")
+FB_DATABASE = os.environ.get("FB_DATABASE")
+FB_USER = os.environ.get("FB_USER")
+FB_PASSWORD = os.environ.get("FB_PASSWORD")
+CHARSET = os.environ.get("CHARSET")
+
+connection = {'host': FB_HOST,
+              'database': FB_DATABASE,
+              'user': FB_USER,
+              'password': FB_PASSWORD,
+              'charset': CHARSET
               }
 
 time_dct = {"time": ["00:00-00:30", "00:30-01:00", "01:00-01:30", "01:30-02:00", "02:00-02:30", "02:30-03:00",
@@ -122,7 +132,6 @@ def security(dct_of_values: dict, spisok_dat: list):
     dct_of_values["time"] = time_dct["time"] * int((max_len_list / 48))
 
     return dct_of_values
-
 
 # if __name__ == "__main__":
 #     time_list = ['2023-02-26 00:00:00', '2023-02-28 00:00:00']
