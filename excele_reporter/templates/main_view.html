@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Reporter{% endblock %}
+{% block content %}
+<form method="post" action="/">
+        <div class="select">
+        <select class="form-select" aria-label="Default select example" name="command">
+            <option selected>Параметр отчёта</option>
+            {% for command in commands %}
+            <option value="{{ command }}">{{ command }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="select">
+        <select class="form-select" aria-label="Default select example" name="start_date">
+            <option selected>Выберите начальную дату</option>
+            {% for date in dates %}
+            <option value="{{ date }}">{{ date }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="select">
+        <select class="form-select" aria-label="Default select example" name="end_date">
+            <option selected>Выберите конечную дату</option>
+            {% for end_date in dates %}
+            <option value="{{ end_date }}">{{ end_date }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="select">
+        <select class="form-select" aria-label="Default select example" name="selected_items">
+            <option selected>Выберите счётчик(-и)</option>
+            {% for vmid in vmids %}
+            <option onclick="" value="{{ vmid }}">{{ vmid }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-secondary">Сформировать отчёт</button>
+</form>
+{% endblock %}
