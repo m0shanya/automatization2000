@@ -3,6 +3,7 @@ from copy import deepcopy
 
 import os
 import fdb
+import openpyxl
 import pandas as pd
 import datetime as dt
 
@@ -107,7 +108,10 @@ def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start
         with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="a") as writer:
             dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                                index=False)
-    except Exception:
+    except ValueError:
+        workbook1 = openpyxl.load_workbook(f'{filename}.xlsx')
+        sheet1 = workbook1[f'{vmids[0]}..{vmids[-1]}']
+        del sheet1
         with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="w") as writer:
             dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                                index=False)
