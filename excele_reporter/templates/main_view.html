@@ -2,7 +2,7 @@
 {% block title %}Reporter{% endblock %}
 {% block content %}
 <form method="post" action="/">
-        <div class="select">
+    <div class="select">
         <select class="form-select" aria-label="Default select example" name="command">
             <option selected>Параметр отчёта</option>
             {% for command in commands %}
@@ -23,6 +23,20 @@
             <option selected>Выберите конечную дату</option>
             {% for end_date in dates %}
             <option value="{{ end_date }}">{{ end_date }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="select">
+        <select class="form-select" aria-label="Default select example" name="start_time">
+            <option selected>Выберите время отсчёта</option>
+            {% for element in time %}
+            <option value="{{ element }}">{{ element }}</option>
+            {% endfor %}
+        </select>
+        <select class="form-select" aria-label="Default select example" name="end_time">
+            <option selected>Выберите время окончания отсчёта</option>
+            {% for end_element in time %}
+            <option value="{{ end_element }}">{{ end_element }}</option>
             {% endfor %}
         </select>
     </div>

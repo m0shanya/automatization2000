@@ -99,15 +99,24 @@ def get_date(time: list) -> list:
     return dates
 
 
-def do_write(val: dict, list_of_dates: list, vmids: list, filename: str):
-    prime_values = dict(sorted(security(val, list_of_dates).items()))
+def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start: str, t_end: str):
+    prime_values = dict(sorted(security(val, list_of_dates, t_start, t_end).items()))
     dataframe = pd.DataFrame(prime_values)
     with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="a") as writer:
         dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                            index=False)
 
 
-def security(dct_of_values: dict, spisok_dat: list):
+def time_manager(time_s: str, time_e: str) -> dict:
+    timer = {"time": ["-"] * 48}
+    if (time_s in time_dct["time"]) and (time_e in time_dct["time"]):
+        timer["time"][time_dct["time"].index(time_s):time_dct["time"].index(time_e) + 1] = \
+            time_dct["time"][time_dct["time"].index(time_s):time_dct["time"].index(time_e) + 1]
+
+    return timer
+
+
+def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: str):
     spis_of_dates = []
     for item in spisok_dat:
         spis_of_dates = spis_of_dates + [item] * 48
@@ -129,13 +138,14 @@ def security(dct_of_values: dict, spisok_dat: list):
         if len(dct_of_values[key]) < max_len_list:
             dct_of_values[key] = dct_of_values[key] + dlc * (max_len_list - len(dct_of_values[key]))
 
-    dct_of_values["time"] = time_dct["time"] * int((max_len_list / 48))
+    dct_of_values["time"] = time_manager(start_time, end_time)["time"] * int((max_len_list / 48))
 
     return dct_of_values
+
 
 # if __name__ == "__main__":
 #     time_list = ['2023-02-26 00:00:00', '2023-02-28 00:00:00']
 #     vmid_list = ['Office CE301']
 #     dates = get_date(time_list)
 #     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
-#     do_write(values, dates, vmid_list, 'Срез 30 мин E+')
+#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "09:30-10:00", "23:30-24:00")

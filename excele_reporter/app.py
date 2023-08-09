@@ -31,8 +31,9 @@ def main_view():
         vmid_list = [request.form["selected_items"]]
         dates = get_date(time_list)
         values = get_data(vmid_list, time_list, request.form["command"])
-        do_write(values, dates, vmid_list, request.form["command"])
-    return render_template("main_view.html", commands=data["commands"], dates=data["date"], vmids=data["vmid"])
+        do_write(values, dates, vmid_list, request.form["command"], request.form["start_time"], request.form["end_time"])
+    return render_template("main_view.html", commands=data["commands"], dates=data["date"], vmids=data["vmid"],
+                           time=time_dct["time"])
 
 
 if __name__ == "__main__":
