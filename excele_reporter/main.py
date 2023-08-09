@@ -32,9 +32,9 @@ time_dct = {"time": ["00:00-00:30", "00:30-01:00", "01:00-01:30", "01:30-02:00",
 
 def changer_command(command_name: str) -> int:
     cmdid = 0
-    if command_name == "Срез 30 мин Е+":
+    if command_name == "Срез 30 мин E+":
         cmdid = 13
-    elif command_name == "Срез 30 мин Е-":
+    elif command_name == "Срез 30 мин E-":
         cmdid = 14
     elif command_name == "Срез 30 мин R+":
         cmdid = 15
@@ -103,9 +103,14 @@ def get_date(time: list) -> list:
 def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start: str, t_end: str):
     prime_values = dict(sorted(security(val, list_of_dates, t_start, t_end).items()))
     dataframe = pd.DataFrame(prime_values)
-    with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="a") as writer:
-        dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
-                           index=False)
+    try:
+        with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="a") as writer:
+            dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
+                               index=False)
+    except Exception:
+        with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="w") as writer:
+            dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
+                               index=False)
 
 
 def time_manager(time_s: str, time_e: str) -> list[int]:
@@ -159,8 +164,8 @@ def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: s
 
 
 # if __name__ == "__main__":
-#     time_list = ['2023-02-26 00:00:00', '2023-02-28 00:00:00']
-#     vmid_list = ['Office SS301']
+#     time_list = ['2023-07-24 00:00:00', '2023-07-31 00:00:00']
+#     vmid_list = ['КТП3 Ввод 1 (66)']
 #     dates = get_date(time_list)
 #     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
-#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "05:30-06:00", "21:00-21:30")
+#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "03:00-03:30", "21:00-21:30")
