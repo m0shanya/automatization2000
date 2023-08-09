@@ -1,4 +1,5 @@
 from dotenv import load_dotenv, find_dotenv
+from copy import deepcopy
 
 import os
 import fdb
@@ -107,13 +108,26 @@ def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start
                            index=False)
 
 
-def time_manager(time_s: str, time_e: str) -> dict:
-    timer = {"time": ["-"] * 48}
+def time_manager(time_s: str, time_e: str) -> list[int]:
+    index_time = []
     if (time_s in time_dct["time"]) and (time_e in time_dct["time"]):
-        timer["time"][time_dct["time"].index(time_s):time_dct["time"].index(time_e) + 1] = \
-            time_dct["time"][time_dct["time"].index(time_s):time_dct["time"].index(time_e) + 1]
+        index_time.append(time_dct["time"].index(time_s))
+        index_time.append(time_dct["time"].index(time_e))
+    return index_time
 
-    return timer
+
+def time_dct_editor(idx: list[int], len_of_frame: int):
+    minus = ["-"]
+    tmp_res = []
+    tmp_time = deepcopy(time_dct["time"])
+    tmp_time[0:idx[0]] = minus * idx[0]
+    tmp_res = tmp_res + tmp_time
+    tmp_res = tmp_res + time_dct["time"] * int((len_of_frame / 48) - 2)
+    tmp_time = deepcopy(time_dct["time"])
+    tmp_time[idx[1] + 1:len(tmp_time)] = minus * (47 - idx[1])
+    tmp_res = tmp_res + tmp_time
+
+    return tmp_res
 
 
 def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: str):
@@ -138,14 +152,15 @@ def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: s
         if len(dct_of_values[key]) < max_len_list:
             dct_of_values[key] = dct_of_values[key] + dlc * (max_len_list - len(dct_of_values[key]))
 
-    dct_of_values["time"] = time_manager(start_time, end_time)["time"] * int((max_len_list / 48))
+    # dct_of_values["time"] = time_dct["time"] * int((max_len_list / 48))
+    dct_of_values["time"] = time_dct_editor(time_manager(start_time, end_time), max_len_list)
 
     return dct_of_values
 
 
 # if __name__ == "__main__":
 #     time_list = ['2023-02-26 00:00:00', '2023-02-28 00:00:00']
-#     vmid_list = ['Office CE301']
+#     vmid_list = ['Office SS301']
 #     dates = get_date(time_list)
 #     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
-#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "09:30-10:00", "23:30-24:00")
+#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "05:30-06:00", "21:00-21:30")
