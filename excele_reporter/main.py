@@ -167,9 +167,9 @@ def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: s
     return dct_of_values
 
 
-# if __name__ == "__main__":
-#     time_list = ['2023-07-24 00:00:00', '2023-07-31 00:00:00']
-#     vmid_list = ['КТП3 Ввод 1 (66)']
-#     dates = get_date(time_list)
-#     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
-#     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "03:00-03:30", "21:00-21:30")
+if __name__ == "__main__":
+    time_list = ['2023-07-24 00:00:00', '2023-07-31 00:00:00']
+    vmid_list = ['КТП3 Ввод 1 (66)']
+    dates = get_date(time_list)
+    values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
+    do_write(values, dates, vmid_list, 'Срез 30 мин E+', "03:00-03:30", "21:00-21:30")
