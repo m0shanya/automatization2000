@@ -24,11 +24,10 @@ def data_list() -> dict:
 @app.route("/", methods=["GET", "POST"])
 def main_view():
     data = data_list()
-    if request.method == 'POST':
-        appended = request.form
-        print(appended)
+    if request.method == "POST":
+        print(request.form)
         time_list = [request.form["start_date"], request.form["end_date"]]
-        vmid_list = [request.form["selected_items"]]
+        vmid_list = request.form.getlist("selected_items[]")
         dates = get_date(time_list)
         values = get_data(vmid_list, time_list, request.form["command"])
         do_write(values, dates, vmid_list, request.form["command"], request.form["start_time"], request.form["end_time"])

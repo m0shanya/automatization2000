@@ -41,10 +41,10 @@
         </select>
     </div>
     <div class="select">
-        <select class="form-select" aria-label="Default select example" name="selected_items">
-            <option selected>Выберите счётчик(-и)</option>
+        <select multiple name="selected_items[]" class="form-select" aria-label="Default select example">
+            <option disabled>Выберите счётчик(-и)</option>
             {% for vmid in vmids %}
-            <option onclick="" value="{{ vmid }}">{{ vmid }}</option>
+            <option value="{{ vmid }}">{{ vmid }}</option>
             {% endfor %}
         </select>
     </div>
