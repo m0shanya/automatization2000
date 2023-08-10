@@ -29,6 +29,8 @@ time_dct = {"time": ["00:00-00:30", "00:30-01:00", "01:00-01:30", "01:30-02:00",
                      "18:00-18:30", "18:30-19:00", "19:00-19:30", "19:30-20:00", "20:00-20:30", "20:30-21:00",
                      "21:00-21:30", "21:30-22:00", "22:00-22:30", "22:30-23:00", "23:00-23:30", "23:30-24:00"]}
 
+ku = 100
+
 
 def changer_command(command_name: str) -> int:
     cmdid = 0
@@ -78,7 +80,7 @@ def get_data(numb: list, time: list, cmd_name: str) -> dict:
                     if dt.datetime(int(tmp[0]), int(tmp[1]), int(tmp[2])) == val[5]:
                         j += 1
                         dates.remove(item)
-                        value += val[6:54]
+                        value += [number * ku if number is not None else number for number in val[6:54]]
                         break
                     else:
                         value = value + dlc * 48
