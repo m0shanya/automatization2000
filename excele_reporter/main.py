@@ -1,5 +1,6 @@
 from dotenv import load_dotenv, find_dotenv
 from copy import deepcopy
+from openpyxl import styles, load_workbook
 
 import os
 import fdb
@@ -110,6 +111,33 @@ def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start
         dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                            index=False)
 
+    max_min_func(dataframe, filename, vmids)
+
+
+def max_min_func(df: pd.DataFrame, name: str, vm_ids: list):
+    maximum = 0
+    minimum = 0
+
+    for val in df.columns:
+        if "Датчик" in val:
+            maximum = df[val].max()
+            minimum = df[val].min()
+            max_idx = df.loc[df[val] == maximum].index[0]
+            min_idx = df.loc[df[val] == minimum].index[0]
+            col_idx = df.columns.get_loc(val)
+
+            painter(name, vm_ids, max_idx, min_idx, col_idx)
+
+
+def painter(file_name: str, sheet_name: list, *args):
+    wb = load_workbook(f"{file_name}.xlsx")
+    ws = wb.get_sheet_by_name(f"{sheet_name[0]}..{sheet_name[-1]}")
+    ws.cell(row=args[0] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='3aa832', end_color='3aa832',
+                                                                           fill_type='solid')
+    ws.cell(row=args[1] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='51fa0e62', end_color='51fa0e62',
+                                                                           fill_type='solid')
+    wb.save(f"{file_name}.xlsx")
+
 
 def time_manager(time_s: str, time_e: str) -> list[int]:
     index_time = []
@@ -162,8 +190,8 @@ def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: s
 
 
 if __name__ == "__main__":
-    time_list = ['2023-07-24 00:00:00', '2023-07-31 00:00:00']
-    vmid_list = ['КТП3 Ввод 1 (66)']
+    time_list = ['2023-04-26 00:00:00', '2023-04-28 00:00:00']
+    vmid_list = ['СТП-1 КВ-1', 'ПП-3 ТО-1']
     dates = get_date(time_list)
     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
-    do_write(values, dates, vmid_list, 'Срез 30 мин E+', "03:00-03:30", "21:00-21:30")
+    do_write(values, dates, vmid_list, 'Срез 30 мин E+', "01:00-01:30", "06:00-06:30")
