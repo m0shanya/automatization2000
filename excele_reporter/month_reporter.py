@@ -19,33 +19,33 @@ connection = {'host': FB_HOST,
               'charset': CHARSET
               }
 
-tarif = {"tarif": [0, 1, 2, 3]}
+tarif = {"tarif": [0, 1, 2, 3, 4, 5]}
 
 ku = 1
 
 
-def changer_command_day(command_name: str) -> int:
+def changer_command_month(command_name: str) -> int:
     cmdid = 0
     if command_name == "Начало суток E+":
-        cmdid = 17
+        cmdid = 21
     elif command_name == "Начало суток E-":
-        cmdid = 18
+        cmdid = 22
     elif command_name == "Начало суток R+":
-        cmdid = 19
+        cmdid = 23
     else:
-        cmdid = 20
+        cmdid = 24
     return cmdid
 
 
-def get_day_data(numb: list, time: list, cmd_name: str) -> dict:
+def get_month_data(numb: list, time: list, cmd_name: str) -> dict:
     dlc = ["-"]
     res = {}
 
-    command_id = changer_command_day(cmd_name)
+    command_id = changer_command_month(cmd_name)
 
     with fdb.connect(**connection) as con:
         for element in numb:
-            dates = get_day_date(time)
+            dates = get_month_date(time)
 
             value = []
 
@@ -82,7 +82,7 @@ def get_day_data(numb: list, time: list, cmd_name: str) -> dict:
                         break
                     elif item not in tmp_list:
                         trf = 0
-                        while trf < 4:
+                        while trf < 6:
                             value = value + dlc
                             trf += 1
 
@@ -91,7 +91,7 @@ def get_day_data(numb: list, time: list, cmd_name: str) -> dict:
     return res
 
 
-def get_day_date(time: list) -> list:
+def get_month_date(time: list) -> list:
     start_date = time[0]
     end_date = time[1]
     dates = pd.date_range(
@@ -102,17 +102,17 @@ def get_day_date(time: list) -> list:
     return dates
 
 
-def do_day_write(val: dict, list_of_dates: list, vmids: list, filename: str):
+def do_month_write(val: dict, list_of_dates: list, vmids: list, filename: str):
     prime_values = dict(sorted(security(val, list_of_dates).items()))
     dataframe = pd.DataFrame(prime_values)
 
-    with pd.ExcelWriter(f'days/{filename}.xlsx', engine="openpyxl", mode="a", if_sheet_exists='replace') as writer:
+    with pd.ExcelWriter(f'months/{filename}.xlsx', engine="openpyxl", mode="a", if_sheet_exists='replace') as writer:
         dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                            index=False)
-    max_min_func_for_day(dataframe, filename, vmids)
+    max_min_func_for_month(dataframe, filename, vmids)
 
 
-def max_min_func_for_day(df: pd.DataFrame, name: str, vm_ids: list):
+def max_min_func_for_month(df: pd.DataFrame, name: str, vm_ids: list):
     maximum = 0
     minimum = 0
 
@@ -130,17 +130,17 @@ def max_min_func_for_day(df: pd.DataFrame, name: str, vm_ids: list):
             min_idx = df.loc[df[val] == minimum].index[0]
             col_idx = df.columns.get_loc(val)
 
-            painter_for_day(name, vm_ids, max_idx, min_idx, col_idx)
+            painter_for_month(name, vm_ids, max_idx, min_idx, col_idx)
 
 
-def painter_for_day(file_name: str, sheet_name: list, *args):
-    wb = load_workbook(f"days/{file_name}.xlsx")
+def painter_for_month(file_name: str, sheet_name: list, *args):
+    wb = load_workbook(f"months/{file_name}.xlsx")
     ws = wb.get_sheet_by_name(f"{sheet_name[0]}..{sheet_name[-1]}")
     ws.cell(row=args[0] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='3aa832', end_color='3aa832',
                                                                            fill_type='solid')
     ws.cell(row=args[1] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='51fa0e62', end_color='51fa0e62',
                                                                            fill_type='solid')
-    wb.save(f"days/{file_name}.xlsx")
+    wb.save(f"months/{file_name}.xlsx")
 
 
 def security(dct_of_values: dict, spisok_dat: list):
@@ -173,6 +173,6 @@ def security(dct_of_values: dict, spisok_dat: list):
 if __name__ == "__main__":
     time_list = ['2023-02-24 00:00:00', '2023-02-28 00:00:00']
     vmid_list = ['Office SS301']
-    dates = get_day_date(time_list)
-    values = get_day_data(vmid_list, time_list, 'Начало суток E+')
-    do_day_write(values, dates, vmid_list, 'Начало суток E+')
+    dates = get_month_date(time_list)
+    values = get_month_data(vmid_list, time_list, 'Начало суток E+')
+    do_month_write(values, dates, vmid_list, 'Начало суток E+')

@@ -1,5 +1,6 @@
 from main import *
 from day_reporter import *
+from month_reporter import *
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
@@ -11,6 +12,8 @@ def data_list(identifier: int) -> dict:
         result["commands"] = ["Срез 30 мин E+", "Срез 30 мин E-", "Срез 30 мин R+", "Срез 30 мин R-"]
     elif identifier == 2:
         result["commands"] = ["Начало суток E+", "Начало суток E-", "Начало суток R+", "Начало суток R-"]
+    else:
+        result["commands"] = ["Начало месяца E+", "Начало месяца E-", "Начало месяца R+", "Начало месяца R-"]
     with fdb.connect(**connection) as con:
         cur = con.cursor()
         query_for_vmid = f"""SELECT M_SVMETERNAME FROM SL3VMETERTAG ORDER BY M_SVMETERNAME """
@@ -57,7 +60,17 @@ def day_view():
 
 @app.route("/month/", methods=["GET", "POST"])
 def month_view():
-    pass
+    func_id = 3
+    data = data_list(func_id)
+    if request.method == "POST":
+        print(request.form)
+        time_list = [request.form["start_date"], request.form["end_date"]]
+        vmid_list = request.form.getlist("selected_items[]")
+        dates = get_month_date(time_list)
+        values = get_month_data(vmid_list, time_list, request.form["command"])
+        do_month_write(values, dates, vmid_list, request.form["command"])
+
+    return render_template("month_view.html", commands=data["commands"], dates=data["date"], vmids=data["vmid"])
 
 
 if __name__ == "__main__":

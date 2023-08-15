@@ -107,7 +107,7 @@ def do_write(val: dict, list_of_dates: list, vmids: list, filename: str, t_start
     prime_values = dict(sorted(security(val, list_of_dates, t_start, t_end).items()))
     dataframe = pd.DataFrame(prime_values)
 
-    with pd.ExcelWriter(f'{filename}.xlsx', engine="openpyxl", mode="a", if_sheet_exists='replace') as writer:
+    with pd.ExcelWriter(f'halfhourly/{filename}.xlsx', engine="openpyxl", mode="a", if_sheet_exists='replace') as writer:
         dataframe.to_excel(writer, sheet_name=f'{vmids[0]}..{vmids[-1]}',
                            index=False)
 
@@ -130,13 +130,13 @@ def max_min_func(df: pd.DataFrame, name: str, vm_ids: list):
 
 
 def painter(file_name: str, sheet_name: list, *args):
-    wb = load_workbook(f"{file_name}.xlsx")
+    wb = load_workbook(f"halfhourly/{file_name}.xlsx")
     ws = wb.get_sheet_by_name(f"{sheet_name[0]}..{sheet_name[-1]}")
     ws.cell(row=args[0] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='3aa832', end_color='3aa832',
                                                                            fill_type='solid')
     ws.cell(row=args[1] + 2, column=args[2] + 1).fill = styles.PatternFill(start_color='51fa0e62', end_color='51fa0e62',
                                                                            fill_type='solid')
-    wb.save(f"{file_name}.xlsx")
+    wb.save(f"halfhourly/{file_name}.xlsx")
 
 
 def time_manager(time_s: str, time_e: str) -> list[int]:
