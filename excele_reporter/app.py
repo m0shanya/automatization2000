@@ -20,8 +20,16 @@ def data_list(identifier: int) -> dict:
         cur.execute(query_for_vmid)
         result["vmid"] = [vmid[0] for vmid in cur.fetchall()]
 
-        query_for_date = f"""SELECT DISTINCT M_SDTDATE FROM L2HALF_HOURLY_ENERGY WHERE M_SWCMDID=13
-        ORDER BY M_SDTDATE DESC"""
+        if identifier == 1:
+            query_for_date = f"""SELECT DISTINCT M_SDTDATE FROM L2HALF_HOURLY_ENERGY WHERE M_SWCMDID between 13 and 16
+            ORDER BY M_SDTDATE DESC"""
+        elif identifier == 2:
+            query_for_date = f"""SELECT DISTINCT M_STIME FROM L3ARCHDATA WHERE M_SWCMDID between 17 and 20
+            ORDER BY M_STIME DESC"""
+        else:
+            query_for_date = f"""SELECT DISTINCT M_STIME FROM L3ARCHDATA WHERE M_SWCMDID between 21 and 24
+            ORDER BY M_STIME DESC"""
+
         cur.execute(query_for_date)
         result["date"] = [date[0].strftime("%Y-%m-%d") for date in cur.fetchall()]
 

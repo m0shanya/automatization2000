@@ -123,14 +123,18 @@ def max_min_func_for_day(df: pd.DataFrame, name: str, vm_ids: list):
             for element in df[val]:
                 if element != '-':
                     number.append(element)
+            if not number:
+                continue
 
             maximum = max(number)
             minimum = min(number)
+
             max_idx = df.loc[df[val] == maximum].index[0]
             min_idx = df.loc[df[val] == minimum].index[0]
             col_idx = df.columns.get_loc(val)
 
             painter_for_day(name, vm_ids, max_idx, min_idx, col_idx)
+
 
 
 def painter_for_day(file_name: str, sheet_name: list, *args):
@@ -172,7 +176,8 @@ def security(dct_of_values: dict, spisok_dat: list):
 
 if __name__ == "__main__":
     time_list = ['2023-02-24 00:00:00', '2023-02-28 00:00:00']
-    vmid_list = ['Office SS301']
+    vmid_list = ['Office SS301', ' ОАО "ММЗ" №1', ' ОАО "ММЗ" №2', '1T1',
+                 '33_Субаб_(А+)_ООО"Армет"; Ввод_1_ЩУР; от ТП-34А(СШ-II)', 'CE301 Tractor']
     dates = get_day_date(time_list)
     values = get_day_data(vmid_list, time_list, 'Начало суток E+')
     do_day_write(values, dates, vmid_list, 'Начало суток E+')

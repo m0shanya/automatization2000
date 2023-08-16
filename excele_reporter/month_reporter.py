@@ -58,7 +58,7 @@ def get_month_data(numb: list, time: list, cmd_name: str) -> dict:
 
             query = f"""SELECT DISTINCT M_SWTID, M_STIME, M_SFVALUE FROM L3ARCHDATA 
             WHERE M_SWCMDID={command_id} AND 
-            M_STIME BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={vmid[0]} ORDER BY M_STIME"""
+            M_STIME BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={vmid[0]} ORDER BY M_STIME DESC"""
             cur.execute(query)
 
             trf = 0
@@ -96,8 +96,9 @@ def get_month_date(time: list) -> list:
     end_date = time[1]
     dates = pd.date_range(
         min(start_date, end_date),
-        max(start_date, end_date)
-    ).strftime('%Y-%m-%d').tolist()
+        max(start_date, end_date),
+        freq='MS'
+    ).strftime('%Y-%m-01').tolist()
 
     return dates
 
@@ -124,6 +125,9 @@ def max_min_func_for_month(df: pd.DataFrame, name: str, vm_ids: list):
                 if element != '-':
                     number.append(element)
 
+            if not number:
+                continue
+
             maximum = max(number)
             minimum = min(number)
             max_idx = df.loc[df[val] == maximum].index[0]
@@ -146,7 +150,7 @@ def painter_for_month(file_name: str, sheet_name: list, *args):
 def security(dct_of_values: dict, spisok_dat: list):
     spis_of_dates = []
     for item in spisok_dat:
-        spis_of_dates = spis_of_dates + [item] * 4
+        spis_of_dates = spis_of_dates + [item] * len(tarif["tarif"])
 
     dct_of_values["date"] = spis_of_dates
     max_len_list = 0
@@ -171,8 +175,9 @@ def security(dct_of_values: dict, spisok_dat: list):
 
 
 if __name__ == "__main__":
-    time_list = ['2023-02-24 00:00:00', '2023-02-28 00:00:00']
-    vmid_list = ['Office SS301']
+    time_list = ['2023-01-01 00:00:00', '2023-02-01 00:00:00']
+    vmid_list = ['Office SS301', ' ОАО "ММЗ" №1', ' ОАО "ММЗ" №2', '1T1',
+                 '33_Субаб_(А+)_ООО"Армет"; Ввод_1_ЩУР; от ТП-34А(СШ-II)', 'CE301 Tractor']
     dates = get_month_date(time_list)
-    values = get_month_data(vmid_list, time_list, 'Начало суток E+')
-    do_month_write(values, dates, vmid_list, 'Начало суток E+')
+    values = get_month_data(vmid_list, time_list, 'Начало месяца E+')
+    do_month_write(values, dates, vmid_list, 'Начало месяца E+')
