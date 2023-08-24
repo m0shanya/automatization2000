@@ -120,8 +120,17 @@ def max_min_func(df: pd.DataFrame, name: str, vm_ids: list):
 
     for val in df.columns:
         if "Датчик" in val:
-            maximum = df[val].max()
-            minimum = df[val].min()
+            number = []
+
+            for element in df[val]:
+                if element != '-':
+                    number.append(element)
+            if not number:
+                continue
+
+            maximum = max(number)
+            minimum = min(number)
+
             max_idx = df.loc[df[val] == maximum].index[0]
             min_idx = df.loc[df[val] == minimum].index[0]
             col_idx = df.columns.get_loc(val)
@@ -147,10 +156,17 @@ def time_manager(time_s: str, time_e: str) -> list[int]:
     return index_time
 
 
-def time_dct_editor(idx: list[int], len_of_frame: int):
+def time_dct_editor(idx: list[int], len_of_frame: int, dates: list):
     minus = ["-"]
     tmp_res = []
     tmp_time = deepcopy(time_dct["time"])
+
+    if len(dates) == 1:
+        tmp_time[0:idx[0]] = minus * idx[0]
+        tmp_time[idx[1] + 1:len(tmp_time)] = minus * (47 - idx[1])
+        tmp_res = tmp_res + tmp_time
+        return tmp_res
+
     tmp_time[0:idx[0]] = minus * idx[0]
     tmp_res = tmp_res + tmp_time
     tmp_res = tmp_res + time_dct["time"] * int((len_of_frame / 48) - 2)
@@ -184,14 +200,14 @@ def security(dct_of_values: dict, spisok_dat: list, start_time: str, end_time: s
             dct_of_values[key] = dct_of_values[key] + dlc * (max_len_list - len(dct_of_values[key]))
 
     # dct_of_values["time"] = time_dct["time"] * int((max_len_list / 48))
-    dct_of_values["time"] = time_dct_editor(time_manager(start_time, end_time), max_len_list)
+    dct_of_values["time"] = time_dct_editor(time_manager(start_time, end_time), max_len_list, spisok_dat)
 
     return dct_of_values
 
 
 if __name__ == "__main__":
-    time_list = ['2023-04-26 00:00:00', '2023-04-28 00:00:00']
-    vmid_list = ['СТП-1 КВ-1', 'ПП-3 ТО-1']
+    time_list = ['2023-08-21 00:00:00', '2023-08-21 00:00:00']
+    vmid_list = ['ф26']
     dates = get_date(time_list)
     values = get_data(vmid_list, time_list, 'Срез 30 мин E+')
     do_write(values, dates, vmid_list, 'Срез 30 мин E+', "01:00-01:30", "06:00-06:30")
