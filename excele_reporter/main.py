@@ -87,7 +87,7 @@ def get_data(numb: list, time: list, cmd_name: str) -> dict:
                         value = value + dlc * 48
                         item = dates[i - j]
 
-            res[f"Датчик {element}"] = value
+            res[f"Счётчик {element}"] = value
 
     return res
 
@@ -119,7 +119,7 @@ def max_min_func(df: pd.DataFrame, name: str, vm_ids: list):
     minimum = 0
 
     for val in df.columns:
-        if "Датчик" in val:
+        if "Счётчик" in val:
             number = []
 
             for element in df[val]:

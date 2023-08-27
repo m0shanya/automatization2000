@@ -19,18 +19,18 @@ connection = {'host': FB_HOST,
               'charset': CHARSET
               }
 
-tarif = {"tarif": [0, 1, 2, 3, 4, 5]}
+tarif = {"tarif": [0, 1, 2, 3, 4, 5, "Сумма"]}
 
-ku = 1
+ku = 4000
 
 
 def changer_command_month(command_name: str) -> int:
     cmdid = 0
-    if command_name == "Начало суток E+":
+    if command_name == "Начало месяца E+":
         cmdid = 21
-    elif command_name == "Начало суток E-":
+    elif command_name == "Начало месяца E-":
         cmdid = 22
-    elif command_name == "Начало суток R+":
+    elif command_name == "Начало месяца R+":
         cmdid = 23
     else:
         cmdid = 24
@@ -47,8 +47,6 @@ def get_month_data(numb: list, time: list, cmd_name: str) -> dict:
         for element in numb:
             dates = get_month_date(time)
 
-            value = []
-
             cur = con.cursor()
 
             query_element = f"""SELECT M_SWVMID FROM SL3VMETERTAG 
@@ -58,35 +56,53 @@ def get_month_data(numb: list, time: list, cmd_name: str) -> dict:
 
             query = f"""SELECT DISTINCT M_SWTID, M_STIME, M_SFVALUE FROM L3ARCHDATA 
             WHERE M_SWCMDID={command_id} AND 
-            M_STIME BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={vmid[0]} ORDER BY M_STIME DESC"""
+            M_STIME BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={vmid[0]} ORDER BY M_STIME"""
             cur.execute(query)
 
-            trf = 0
             tmp = False
             tmp_list = []
+            tmp_sum = 0
+            trf = 0
+            res[f"Счётчик {element}"] = []
             for val in cur.fetchall():
                 for item in dates:
+
                     if tmp:
                         item = tmp
+                        if tmp < val[1].strftime('%Y-%m-%d') and len(res[f"Счётчик {element}"]) % 7 != 0:
+                            for _ in range(len(res[f"Счётчик {element}"]),
+                                           len(tarif["tarif"]) * (dates.index(tmp) + 1) - 1):
+                                res[f"Счётчик {element}"].append('-')
+                            res[f"Счётчик {element}"].append(tmp_sum)
+                            tmp_sum = 0
+                            tmp = False
+
                     if item == val[1].strftime('%Y-%m-%d') and trf == val[0]:
                         if item not in tmp_list:
                             tmp_list.append(item)
                         trf += 1
-                        value += [val[2] * ku if val[2] is not None else val[2]]
+                        tmp = item
+                        res[f"Счётчик {element}"] += [val[2] if val[2] is not None else val[2]]
+                        tmp_sum += val[2] / ku if val[2] is not None else 0
                         break
                     elif item == val[1].strftime('%Y-%m-%d') and trf != val[0]:
                         trf = 0
                         tmp = item
                         trf += 1
-                        value += [val[2] * ku if val[2] is not None else val[2]]
+                        res[f"Счётчик {element}"] += [val[2] if val[2] is not None else val[2]]
+                        tmp_sum += val[2] / ku if val[2] is not None else 0
                         break
                     elif item not in tmp_list:
+                        tmp_list.append(item)
                         trf = 0
-                        while trf < 6:
-                            value = value + dlc
-                            trf += 1
+                        res[f"Счётчик {element}"] = res[f"Счётчик {element}"] + dlc * 7
 
-            res[f"Датчик {element}"] = value
+            if tmp:
+                for _ in range(len(res[f"Счётчик {element}"]),
+                               len(tarif["tarif"]) * (dates.index(tmp) + 1) - 1):
+                    res[f"Счётчик {element}"].append('-')
+                res[f"Счётчик {element}"].append(tmp_sum)
+                tmp_sum = 0
 
     return res
 
@@ -118,7 +134,7 @@ def max_min_func_for_month(df: pd.DataFrame, name: str, vm_ids: list):
     minimum = 0
 
     for val in df.columns:
-        if "Датчик" in val:
+        if "Счётчик" in val:
             number = []
 
             for element in df[val]:
@@ -175,9 +191,8 @@ def security(dct_of_values: dict, spisok_dat: list):
 
 
 if __name__ == "__main__":
-    time_list = ['2023-01-01 00:00:00', '2023-02-01 00:00:00']
-    vmid_list = ['Office SS301', ' ОАО "ММЗ" №1', ' ОАО "ММЗ" №2', '1T1',
-                 '33_Субаб_(А+)_ООО"Армет"; Ввод_1_ЩУР; от ТП-34А(СШ-II)', 'CE301 Tractor']
+    time_list = ['2022-07-01 00:00:00', '2022-11-01 00:00:00']
+    vmid_list = ['33_Субаб_(А+)_ООО"Армет"; Ввод_1_ЩУР; от ТП-34А(СШ-II)', '1T1']
     dates = get_month_date(time_list)
     values = get_month_data(vmid_list, time_list, 'Начало месяца E+')
     do_month_write(values, dates, vmid_list, 'Начало месяца E+')

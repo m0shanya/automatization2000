@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dotenv import load_dotenv, find_dotenv
 from openpyxl import styles, load_workbook
 
@@ -19,9 +20,9 @@ connection = {'host': FB_HOST,
               'charset': CHARSET
               }
 
-tarif = {"tarif": [0, 1, 2, 3]}
+tarif = {"tarif": [0, 1, 2, 3, 4, 5, "Сумма"]}
 
-ku = 1
+ku = 4000
 
 
 def changer_command_day(command_name: str) -> int:
@@ -61,32 +62,51 @@ def get_day_data(numb: list, time: list, cmd_name: str) -> dict:
             M_STIME BETWEEN \'{time[0]}\' and \'{time[1]}\' AND M_SWVMID={vmid[0]} ORDER BY M_STIME"""
             cur.execute(query)
 
-            trf = 0
             tmp = False
             tmp_list = []
+            tmp_sum = 0
+            trf = 0
+            res[f"Счётчик {element}"] = []
             for val in cur.fetchall():
                 for item in dates:
+
                     if tmp:
                         item = tmp
+                        if tmp < val[1].strftime('%Y-%m-%d') and len(res[f"Счётчик {element}"]) % 7 != 0:
+                            for _ in range(len(res[f"Счётчик {element}"]),
+                                           len(tarif["tarif"]) * (dates.index(tmp) + 1) - 1):
+                                res[f"Счётчик {element}"].append('-')
+                            res[f"Счётчик {element}"].append(tmp_sum)
+                            tmp_sum = 0
+                            tmp = False
+
                     if item == val[1].strftime('%Y-%m-%d') and trf == val[0]:
                         if item not in tmp_list:
                             tmp_list.append(item)
                         trf += 1
-                        value += [val[2] * ku if val[2] is not None else val[2]]
+                        tmp = item
+                        res[f"Счётчик {element}"] += [val[2] if val[2] is not None else val[2]]
+                        tmp_sum += val[2] / ku if val[2] is not None else 0
                         break
                     elif item == val[1].strftime('%Y-%m-%d') and trf != val[0]:
                         trf = 0
                         tmp = item
                         trf += 1
-                        value += [val[2] * ku if val[2] is not None else val[2]]
+                        res[f"Счётчик {element}"] += [val[2] if val[2] is not None else val[2]]
+                        tmp_sum += val[2] / ku if val[2] is not None else 0
                         break
                     elif item not in tmp_list:
+                        tmp_list.append(item)
                         trf = 0
-                        while trf < 4:
-                            value = value + dlc
-                            trf += 1
+                        res[f"Счётчик {element}"] = res[f"Счётчик {element}"] + dlc * 7
 
-            res[f"Датчик {element}"] = value
+            if tmp:
+                for _ in range(len(res[f"Счётчик {element}"]),
+                               len(tarif["tarif"]) * (dates.index(tmp) + 1) - 1):
+                    res[f"Счётчик {element}"].append('-')
+                res[f"Счётчик {element}"].append(tmp_sum)
+                tmp_sum = 0
+
 
     return res
 
@@ -117,7 +137,7 @@ def max_min_func_for_day(df: pd.DataFrame, name: str, vm_ids: list):
     minimum = 0
 
     for val in df.columns:
-        if "Датчик" in val:
+        if "Счётчик" in val:
             number = []
 
             for element in df[val]:
@@ -136,7 +156,6 @@ def max_min_func_for_day(df: pd.DataFrame, name: str, vm_ids: list):
             painter_for_day(name, vm_ids, max_idx, min_idx, col_idx)
 
 
-
 def painter_for_day(file_name: str, sheet_name: list, *args):
     wb = load_workbook(f"days/{file_name}.xlsx")
     ws = wb.get_sheet_by_name(f"{sheet_name[0]}..{sheet_name[-1]}")
@@ -150,7 +169,7 @@ def painter_for_day(file_name: str, sheet_name: list, *args):
 def security(dct_of_values: dict, spisok_dat: list):
     spis_of_dates = []
     for item in spisok_dat:
-        spis_of_dates = spis_of_dates + [item] * 4
+        spis_of_dates = spis_of_dates + [item] * 7
 
     dct_of_values["date"] = spis_of_dates
     max_len_list = 0
@@ -175,9 +194,8 @@ def security(dct_of_values: dict, spisok_dat: list):
 
 
 if __name__ == "__main__":
-    time_list = ['2023-02-24 00:00:00', '2023-02-28 00:00:00']
-    vmid_list = ['Office SS301', ' ОАО "ММЗ" №1', ' ОАО "ММЗ" №2', '1T1',
-                 '33_Субаб_(А+)_ООО"Армет"; Ввод_1_ЩУР; от ТП-34А(СШ-II)', 'CE301 Tractor']
+    time_list = ['2022-12-17 00:00:00', '2023-02-28 00:00:00']
+    vmid_list = ['Office SS301']
     dates = get_day_date(time_list)
     values = get_day_data(vmid_list, time_list, 'Начало суток E+')
     do_day_write(values, dates, vmid_list, 'Начало суток E+')

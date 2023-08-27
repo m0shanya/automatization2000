@@ -1,5 +1,6 @@
 .venv/
 .idea/
+.env
 
 __pycahe__/
 *.py[cod]
