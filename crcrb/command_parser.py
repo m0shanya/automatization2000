@@ -1,0 +1,371 @@
+import struct
+import fdb
+import os
+
+from datetime import datetime
+from crc16ccc import crc16_chk, reverse_CRC16
+from dotenv import load_dotenv, find_dotenv
+
+load_dotenv(find_dotenv())
+FB_HOST = os.environ.get("FB_HOST")
+FB_DATABASE = os.environ.get("FB_DATABASE")
+FB_USER = os.environ.get("FB_USER")
+FB_PASSWORD = os.environ.get("FB_PASSWORD")
+CHARSET = os.environ.get("CHARSET")
+
+connection = {'host': FB_HOST,
+              'database': FB_DATABASE,
+              'user': FB_USER,
+              'password': FB_PASSWORD,
+              'charset': CHARSET
+              }
+
+
+def printer(message, typeof):
+    res_str = ''
+    for element in [hex(i) for i in message]:  # для печати посылки без лишних символов в консоль
+        res_str += element.split('x')[1]
+        res_str += ' '
+
+    print(f"{typeof}: \n\t{res_str}")
+
+
+def get_datetime() -> dict:
+    time_now = datetime.now()
+    data = dict(year=time_now.year - 2000,
+                month=time_now.month,
+                day=time_now.day,
+                hour=time_now.hour,
+                minute=time_now.minute,
+                second=time_now.second)
+
+    return data
+
+
+def vmid_to_bytes(v_id: int):
+    vmid_tolist = []
+    vmid = hex(v_id).split('x')[1]
+    if len(vmid) == 3:
+        vmid = "0" + vmid
+        vmid_tolist += [vmid[0:2]]
+        vmid_tolist += [vmid[2:4]]
+    elif len(vmid) == 4:
+        vmid_tolist += [vmid[0:2]]
+        vmid_tolist += [vmid[2:4]]
+    else:
+        vmid = "00" + vmid
+        vmid_tolist += [vmid[0:2]]
+        vmid_tolist += [vmid[2:4]]
+
+    vmid_tolist = [int(element) for element in vmid_tolist]
+    return vmid_tolist
+
+
+def test_cmd(choose: int, vmid: int):
+    if choose == 1:
+        byte_cmd = [0x55, 0x81, 0x00, 0x0A, 0x00, 0x01, 0x00, 0x33]
+    elif choose == 2:
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x02, 0x00, 0x05]
+        byte_cmd += vmid_to_bytes(vmid)
+    elif choose == 3:
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x42, 0x00, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x05]
+        byte_cmd += vmid_to_bytes(vmid)
+    elif choose == 4:
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x52, 0x00, 0x01, 0x00, 0x04, 0x00, 0x1b, 0x00, 0x01]
+        byte_cmd += vmid_to_bytes(vmid)
+    elif choose == 5:
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x80, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01, 0x00, 0x05]
+        byte_cmd += vmid_to_bytes(vmid)
+    elif choose == 6:
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x81, 0x00, 0x01, 0x00, 0x04, 0x00, 0x03, 0x00, 0x05]
+        byte_cmd += vmid_to_bytes(vmid)
+    elif choose == 7:
+        byte_cmd = [0x55, 0x81, 0x00, 0x10, 0x00, 0x85, 0x00, 0x01, 0x00, 0x04, 0x00, 0x05]
+        byte_cmd += vmid_to_bytes(vmid)
+    else:
+        return
+    byte_cmd += reverse_CRC16(crc16_chk(byte_cmd))  # составляю и добавляю ЦРЦ во всю посылку
+
+    printer(byte_cmd, "Request")
+
+    return byte_cmd
+
+
+def choose_vmid(command):
+    if command[14] != 0:
+        vmid = command[14] + command[15]
+    else:
+        vmid = command[15]
+
+    return vmid
+
+
+def execute_query(query):
+    with fdb.connect(**connection) as con:
+        cur = con.cursor()
+
+        cur.execute(query)
+
+        result = []
+        for data in cur.fetchall():
+            result += struct.pack("!f", data[0])
+        return result
+
+
+def another_data(response, data, timer, cmd):
+    response = response[0:2]
+    if cmd[5] == 0x85:
+        response += [0x00] + [cmd[5]]
+        response.append(struct.pack("!f", timer["second"])[1])
+        response.append(struct.pack("!f", timer["minute"])[1])
+        response.append(struct.pack("!f", timer["hour"])[1])
+        response.append(struct.pack("!f", timer["day"])[1])
+        response.append(struct.pack("!f", timer["month"])[1])
+        response.append(struct.pack("!f", timer["year"])[1])
+        if data == [] or None:
+            response += [0x00] * 16
+        else:
+            response += data
+    else:
+        if data == [] or None:
+            response += [0x00] + [cmd[5]] + [0x00] * 16
+        else:
+            response += [0x00] + [cmd[5]] + data
+
+    checker = 0x00
+    response += [checker]
+    response.insert(25, struct.pack("!f", timer["minute"])[1])
+    response.insert(26, struct.pack("!f", timer["hour"])[1])
+    response.insert(27, struct.pack("!f", timer["day"])[1])
+    response.insert(28, struct.pack("!f", timer["month"])[1])
+    response.insert(29, struct.pack("!f", timer["year"])[1])
+    response.append(cmd[14])
+    response.append(cmd[15])
+    response.insert(2, 0)
+    response.insert(3, int(hex(len(response) + 3), 16))
+    return response
+
+
+def get_incday_data(comma):
+    vmid = choose_vmid(comma)
+
+    date = None
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+
+    for i in range(0, 10000):
+
+        if comma[11] == i:
+            if day < i:
+                month = month - 1
+                delta = i - day
+                if month % 2 == 0:
+                    day = 30 - delta
+                elif month == 7:
+                    day = 31 - delta
+                elif month == 2:
+                    day = 28 - delta
+                else:
+                    day = 31 - delta
+
+            if month > 10:
+                date = f'{year}-{month}-{day - i} 00:00:00'
+                break
+
+            date = f'{year}-0{month}-{day - i} 00:00:00'
+            break
+    query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
+    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SFVALUE DESC"""
+
+    return execute_query(query)
+
+
+def get_incmonth_data(comma):
+    vmid = choose_vmid(comma)
+    date = None
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+
+    for i in range(0, 10000):
+
+        if comma[11] == i:
+            if day < i:
+                month = month - 1
+            if month > 10:
+                date = f'{year}-{month - i}-01 00:00:00'
+                break
+            date = f'{year}-0{month - i}-01 00:00:00'
+            break
+
+    query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
+    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 9 AND 12 ORDER BY M_SFVALUE DESC"""
+
+    return execute_query(query)
+
+
+def get_min30_data(comma):
+    vmid = choose_vmid(comma)
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+    if month > 10:
+        date = f'{year}-{month}-29 00:00:00'
+    else:
+        date = f'{year}-0{month - 1}-29 00:00:00'
+
+    number = comma[11]
+    query = f"""SELECT V{number} FROM L2HALF_HOURLY_ENERGY WHERE M_SWVMID={vmid} AND M_SDTDATE='{date}' AND
+     M_SWCMDID BETWEEN 13 AND 16"""
+
+    return execute_query(query)
+
+
+def get_month_data(comma):
+    vmid = choose_vmid(comma)
+    date = None
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+
+    for i in range(0, 10000):
+
+        if comma[11] == i:
+            if day < i:
+                month = month - 1
+            if month > 10:
+                date = f'{year}-{month}-01 00:00:00'
+                break
+            date = f'{year}-0{month}-01 00:00:00'
+            break
+
+    query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
+    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 21 AND 24 ORDER BY M_SFVALUE DESC"""
+
+    return execute_query(query)
+
+
+def get_day_data(comma):
+    vmid = choose_vmid(comma)
+    date = None
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+
+    for i in range(0, 10000):
+
+        if comma[11] == i:
+            if day < i:
+                month = month - 1
+                delta = i - day
+                if month == 8:
+                    day = 31 - delta
+                elif month % 2 == 0:
+                    day = 30 - delta
+                elif month == 2:
+                    day = 28 - delta
+                else:
+                    day = 31 - delta
+
+            if month > 10:
+                date = f'{year}-{month}-{day} 00:00:00'
+                break
+            date = f'{year}-0{month}-{day} 00:00:00'
+            break
+
+    query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
+    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SFVALUE DESC"""
+
+    return execute_query(query)
+
+
+def get_allen_data(comma):
+    vmid = choose_vmid(comma)
+    timer = get_datetime()
+    year = timer["year"] + 2000
+    month = timer["month"]
+    day = timer["day"]
+    hour = timer["hour"]
+    minute = timer["minute"]
+    second = timer["second"]
+
+    if month >= 10:
+        date = f'{year}-{month}-{day} {hour}:{minute}:{second}'
+    else:
+        date = f'{year}-0{month}-{day} {hour}:{minute}:{second}'
+
+    query = f"""SELECT M_SFVALUE FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
+    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SFVALUE DESC"""
+
+    return execute_query(query)
+
+
+
+def get_response(cmd):
+    checker = 0x01
+    incoming_data = get_datetime()
+    response = [0xc3] + [0x81] + \
+               [0x00] + [0x16] + \
+               [0x00] + [0x01] + \
+               [0x00] + [0x00] + \
+               [0x00] + [0x00] + \
+               [0x00] + [0x00] + \
+               [checker] + \
+               [struct.pack("!f", incoming_data["minute"])[1]] + \
+               [struct.pack("!f", incoming_data["hour"])[1]] + [struct.pack("!f", incoming_data["day"])[1]] + \
+               [struct.pack("!f", incoming_data["month"])[1]] + [struct.pack("!f", incoming_data["year"])[1]] + \
+               [0x00] + [0x33]
+
+    timer = get_datetime()
+
+    if cmd[5] == 0x01:
+        response[6] = struct.pack("!f", timer["second"])[1]
+        response[7] = struct.pack("!f", timer["minute"])[1]
+        response[8] = struct.pack("!f", timer["hour"])[1]
+        response[9] = struct.pack("!f", timer["day"])[1]
+        response[10] = struct.pack("!f", timer["month"])[1]
+        response[11] = struct.pack("!f", timer["year"])[1]
+
+        if response[7:12] == response[13:18]:
+            checker = 0x00
+            response[12] = checker
+
+    elif cmd[5] == 0x40:
+        data = get_incday_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    elif cmd[5] == 0x42:
+        data = get_incmonth_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    elif cmd[5] == 0x52:
+        data = get_min30_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    elif cmd[5] == 0x80:
+        data = get_month_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    elif cmd[5] == 0x81:
+        data = get_day_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    elif cmd[5] == 0x85:
+        data = get_allen_data(cmd)
+        response = another_data(response, data, timer, cmd)
+
+    else:
+        return
+
+    response += reverse_CRC16(crc16_chk(response))
+    printer(response, "Response")
+
+
+if __name__ == "__main__":
+    get_response(test_cmd(7, 4))
