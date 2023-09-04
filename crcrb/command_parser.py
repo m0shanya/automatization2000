@@ -66,11 +66,12 @@ def test_cmd(choose: int):
     return byte_cmd
 
 
-def choose_vmid(command):
-    if command[14] != 0:
-        vmid = (int(hex(command[6]) + hex(command[7]).split('x')[1], 16) - 1)// 4
+def choose_vmid(command, insertion):
+    if command[6] != 0:
+        vmid = ((int(hex(command[6]) + hex(command[7]).split('x')[1], 16) - 1) // 4) + insertion
     else:
-        vmid = (command[7] - 1) // 4
+        vmid = ((command[7] - 1) // 4) + insertion
+
     return vmid
 
 
@@ -102,17 +103,18 @@ def another_data(response, data, timer, cmd):
             response += data
     else:
         if data == [] or None:
-            response += [0x00] + [cmd[5]] + [0x00] * 16
+            response += [0x00] + [cmd[5]] + [0xff] * 16 * (cmd[9] // 4)
         else:
             response += [0x00] + [cmd[5]] + data
 
-    checker = 0x00
+    checker = 0x00 if data != [] or None else 0x01
     response += [checker]
-    response.insert(25, struct.pack("!f", timer["minute"])[1])
-    response.insert(26, struct.pack("!f", timer["hour"])[1])
-    response.insert(27, struct.pack("!f", timer["day"])[1])
-    response.insert(28, struct.pack("!f", timer["month"])[1])
-    response.insert(29, struct.pack("!f", timer["year"])[1])
+    response.extend([struct.pack("!f", timer["second"])[1],
+                    struct.pack("!f", timer["minute"])[1],
+                    struct.pack("!f", timer["hour"])[1],
+                    struct.pack("!f", timer["day"])[1],
+                    struct.pack("!f", timer["month"])[1],
+                    struct.pack("!f", timer["year"])[1]])
     response.append(cmd[14])
     response.append(cmd[15])
     response.insert(2, 0)
@@ -120,8 +122,8 @@ def another_data(response, data, timer, cmd):
     return response
 
 
-def get_incday_data(comma):
-    vmid = choose_vmid(comma)
+def get_incday_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
 
     date = None
     timer = get_datetime()
@@ -150,14 +152,15 @@ def get_incday_data(comma):
 
             date = f'{year}-0{month}-{day - i} 00:00:00'
             break
+
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
     M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
 
-def get_incmonth_data(comma):
-    vmid = choose_vmid(comma)
+def get_incmonth_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
     date = None
     timer = get_datetime()
     year = timer["year"] + 2000
@@ -181,8 +184,8 @@ def get_incmonth_data(comma):
     return execute_query(query)
 
 
-def get_min30_data(comma):
-    vmid = choose_vmid(comma)
+def get_min30_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
     timer = get_datetime()
     year = timer["year"] + 2000
     month = timer["month"]
@@ -199,8 +202,8 @@ def get_min30_data(comma):
     return execute_query(query)
 
 
-def get_month_data(comma):
-    vmid = choose_vmid(comma)
+def get_month_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
     date = None
     timer = get_datetime()
     year = timer["year"] + 2000
@@ -224,8 +227,8 @@ def get_month_data(comma):
     return execute_query(query)
 
 
-def get_day_data(comma):
-    vmid = choose_vmid(comma)
+def get_day_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
     date = None
     timer = get_datetime()
     year = timer["year"] + 2000
@@ -259,8 +262,8 @@ def get_day_data(comma):
     return execute_query(query)
 
 
-def get_allen_data(comma):
-    vmid = choose_vmid(comma)
+def get_allen_data(comma, insertion):
+    vmid = choose_vmid(comma, insertion)
     timer = get_datetime()
     year = timer["year"] + 2000
     month = timer["month"]
@@ -280,8 +283,8 @@ def get_allen_data(comma):
     return execute_query(query)
 
 
-
 def get_response(cmd):
+    data = []
     checker = 0x01
     incoming_data = get_datetime()
     response = [0xc3] + [0x81] + \
@@ -297,50 +300,52 @@ def get_response(cmd):
                [0x00] + [0x33]
 
     timer = get_datetime()
+    inner = 0
 
-    if cmd[5] == 0x01:
-        response[6] = struct.pack("!f", timer["second"])[1]
-        response[7] = struct.pack("!f", timer["minute"])[1]
-        response[8] = struct.pack("!f", timer["hour"])[1]
-        response[9] = struct.pack("!f", timer["day"])[1]
-        response[10] = struct.pack("!f", timer["month"])[1]
-        response[11] = struct.pack("!f", timer["year"])[1]
+    for i in range(0, cmd[9] // 4):
+        if cmd[5] == 0x01:
+            response[6] = struct.pack("!f", timer["second"])[1]
+            response[7] = struct.pack("!f", timer["minute"])[1]
+            response[8] = struct.pack("!f", timer["hour"])[1]
+            response[9] = struct.pack("!f", timer["day"])[1]
+            response[10] = struct.pack("!f", timer["month"])[1]
+            response[11] = struct.pack("!f", timer["year"])[1]
 
-        if response[7:12] == response[13:18]:
-            checker = 0x00
-            response[12] = checker
+            if response[7:12] == response[13:18]:
+                checker = 0x00
+                response[12] = checker
 
-    elif cmd[5] == 0x40:
-        data = get_incday_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x40:
+            data += get_incday_data(cmd, inner)
+            inner += 1
 
-    elif cmd[5] == 0x42:
-        data = get_incmonth_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x42:
+            data += get_incmonth_data(cmd, inner)
+            inner += 1
 
-    elif cmd[5] == 0x52:
-        data = get_min30_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x52:
+            data += get_min30_data(cmd, inner)
+            inner += 1
 
-    elif cmd[5] == 0x80:
-        data = get_month_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x80:
+            data += get_month_data(cmd, inner)
+            inner += 1
 
-    elif cmd[5] == 0x81:
-        data = get_day_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x81:
+            data += get_day_data(cmd, inner)
+            inner += 1
 
-    elif cmd[5] == 0x85:
-        data = get_allen_data(cmd)
-        response = another_data(response, data, timer, cmd)
+        elif cmd[5] == 0x85:
+            data = get_allen_data(cmd, inner)
+            inner += 1
 
-    else:
-        return
+        else:
+            return
 
+    response = another_data(response, data, timer, cmd)
     response += reverse_CRC16(crc16_chk(response))
     printer(response, "Response")
 
 
 if __name__ == "__main__":
-    # print(choose_vmid(test_cmd(4)))
-    get_response(test_cmd(4))
+    get_response(test_cmd(2))
