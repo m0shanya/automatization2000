@@ -191,9 +191,9 @@ def get_min30_data(comma, insertion):
     month = timer["month"]
     day = timer["day"]
     if month > 10:
-        date = f'{year}-{month}-29 00:00:00'
+        date = f'{year}-{month}-{day} 00:00:00'
     else:
-        date = f'{year}-0{month - 1}-29 00:00:00'
+        date = f'{year}-0{month - 1}-{day} 00:00:00'
 
     number = comma[11]
     query = f"""SELECT V{number} FROM L2HALF_HOURLY_ENERGY WHERE M_SWVMID={vmid} AND M_SDTDATE='{date}' AND
