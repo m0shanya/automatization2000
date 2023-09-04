@@ -1,6 +1,7 @@
 import struct
 import fdb
 import os
+import socket
 
 from datetime import datetime
 from crc16ccc import crc16_chk, reverse_CRC16
@@ -24,10 +25,13 @@ connection = {'host': FB_HOST,
 def printer(message, typeof):
     res_str = ''
     for element in [hex(i) for i in message]:  # для печати посылки без лишних символов в консоль
+        if len(element.split('x')[1]) < 2:
+            res_str += '0'
         res_str += element.split('x')[1]
         res_str += ' '
 
-    print(f"{typeof}: \n\t{res_str}")
+    print(f"{typeof}: \n{res_str}")
+    return res_str
 
 
 def get_datetime() -> dict:
@@ -46,15 +50,15 @@ def test_cmd(choose: int):
     if choose == 1:
         byte_cmd = [0x55, 0x81, 0x00, 0x0A, 0x00, 0x01, 0x00, 0x33]
     elif choose == 2:
-        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x40, 0x00, 0x11, 0x00, 0x04, 0x00, 0x02, 0x00, 0x05, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x40, 0x00, 0x11, 0x00, 0x04, 0x00, 0x02, 0x00, 0x04, 0x00, 0x01]
     elif choose == 3:
-        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x42, 0x00, 0x11, 0x00, 0x04, 0x00, 0x00, 0x00, 0x05, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x42, 0x00, 0x11, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01]
     elif choose == 4:
         byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x52, 0x00, 0x11, 0x00, 0x04, 0x00, 0x1b, 0x00, 0x01, 0x00, 0x01]
     elif choose == 5:
-        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x80, 0x00, 0x11, 0x00, 0x04, 0x00, 0x01, 0x00, 0x05, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x80, 0x00, 0x11, 0x00, 0x04, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01]
     elif choose == 6:
-        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x81, 0x00, 0x11, 0x00, 0x04, 0x00, 0x03, 0x00, 0x05, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x81, 0x00, 0x11, 0x00, 0x04, 0x00, 0x03, 0x00, 0x04, 0x00, 0x01]
     elif choose == 7:
         byte_cmd = [0x55, 0x81, 0x00, 0x10, 0x00, 0x85, 0x00, 0x11, 0x00, 0x04, 0x00, 0x05, 0x00, 0x01]
     else:
@@ -98,23 +102,23 @@ def another_data(response, data, timer, cmd):
         response.append(struct.pack("!f", timer["month"])[1])
         response.append(struct.pack("!f", timer["year"])[1])
         if data == [] or None:
-            response += [0x00] * 16
+            response += [0x00] * 4 * (cmd[9] // 4) * cmd[13]
         else:
             response += data
     else:
         if data == [] or None:
-            response += [0x00] + [cmd[5]] + [0xff] * 16 * (cmd[9] // 4)
+            response += [0x00] + [cmd[5]] + [0xff] * 4 * (cmd[9] // 4) * cmd[13]
         else:
             response += [0x00] + [cmd[5]] + data
 
     checker = 0x00 if data != [] or None else 0x01
     response += [checker]
     response.extend([struct.pack("!f", timer["second"])[1],
-                    struct.pack("!f", timer["minute"])[1],
-                    struct.pack("!f", timer["hour"])[1],
-                    struct.pack("!f", timer["day"])[1],
-                    struct.pack("!f", timer["month"])[1],
-                    struct.pack("!f", timer["year"])[1]])
+                     struct.pack("!f", timer["minute"])[1],
+                     struct.pack("!f", timer["hour"])[1],
+                     struct.pack("!f", timer["day"])[1],
+                     struct.pack("!f", timer["month"])[1],
+                     struct.pack("!f", timer["year"])[1]])
     response.append(cmd[14])
     response.append(cmd[15])
     response.insert(2, 0)
@@ -154,7 +158,7 @@ def get_incday_data(comma, insertion):
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
@@ -179,7 +183,7 @@ def get_incmonth_data(comma, insertion):
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 9 AND 12 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 9 AND 12 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
@@ -216,13 +220,13 @@ def get_month_data(comma, insertion):
             if day < i:
                 month = month - 1
             if month > 10:
-                date = f'{year}-{month}-01 00:00:00'
+                date = f'{year}-{month - i}-01 00:00:00'
                 break
-            date = f'{year}-0{month}-01 00:00:00'
+            date = f'{year}-0{month - i}-01 00:00:00'
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 21 AND 24 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 21 AND 24 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
@@ -257,7 +261,7 @@ def get_day_data(comma, insertion):
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
@@ -278,7 +282,7 @@ def get_allen_data(comma, insertion):
         date = f'{year}-0{month}-{day} {hour}:{minute}:{second}'
 
     query = f"""SELECT M_SFVALUE FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID={comma[12]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SFVALUE DESC"""
 
     return execute_query(query)
 
@@ -345,7 +349,28 @@ def get_response(cmd):
     response = another_data(response, data, timer, cmd)
     response += reverse_CRC16(crc16_chk(response))
     printer(response, "Response")
+    return response
 
 
 if __name__ == "__main__":
     get_response(test_cmd(2))
+    # try:
+    #     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #
+    #     server.bind(("0.0.0.0", 5009))
+    #
+    #     server.listen(500)
+    #
+    #     while True:
+    #         client, address = server.accept()
+    #         print(address)
+    #         response = client.recv(1024)
+    #         print(response.hex())
+    #         command = []
+    #         for i in range(0, len(response), 1):
+    #             value = response[i:i + 1].hex()
+    #             command.append(int('0x' + value, 16))
+    #         print(command)
+    #         client.send(bytes(get_response(command)))
+    # except KeyboardInterrupt as e:
+    #     print(e)
