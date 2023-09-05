@@ -22,3 +22,6 @@ Ethernet.
 
 
 Полезный сайт https://babbage.cs.qc.cuny.edu/ieee-754.old/decimal.html
+
+
+55810012005200110004000a00010012ffc8

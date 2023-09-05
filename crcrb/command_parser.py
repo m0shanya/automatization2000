@@ -54,13 +54,13 @@ def test_cmd(choose: int):
     elif choose == 3:
         byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x42, 0x00, 0x11, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x01]
     elif choose == 4:
-        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x52, 0x00, 0x11, 0x00, 0x04, 0x00, 0x1b, 0x00, 0x01, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x52, 0x00, 0x11, 0x00, 0x04, 0x00, 0x1b, 0x00, 0x02, 0x00, 0x01]
     elif choose == 5:
         byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x80, 0x00, 0x11, 0x00, 0x04, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01]
     elif choose == 6:
         byte_cmd = [0x55, 0x81, 0x00, 0x12, 0x00, 0x81, 0x00, 0x11, 0x00, 0x04, 0x00, 0x03, 0x00, 0x04, 0x00, 0x01]
     elif choose == 7:
-        byte_cmd = [0x55, 0x81, 0x00, 0x10, 0x00, 0x85, 0x00, 0x11, 0x00, 0x04, 0x00, 0x05, 0x00, 0x01]
+        byte_cmd = [0x55, 0x81, 0x00, 0x10, 0x00, 0x85, 0x00, 0x11, 0x00, 0x04, 0x00, 0x05, 0x00, 0x04]
     else:
         return
     byte_cmd += reverse_CRC16(crc16_chk(byte_cmd))  # составляю и добавляю ЦРЦ во всю посылку
@@ -102,7 +102,7 @@ def another_data(response, data, timer, cmd):
         response.append(struct.pack("!f", timer["month"])[1])
         response.append(struct.pack("!f", timer["year"])[1])
         if data == [] or None:
-            response += [0x00] * cmd[9] * (cmd[9] // 4) * cmd[13]
+            response += [0xff] * cmd[9] * (cmd[9] // 4) * cmd[13]
         else:
             response += data
     else:
@@ -155,9 +155,15 @@ def get_incday_data(comma, insertion):
             if month > 10:
                 date = f'{year}-{month}-{day} 00:00:00'
                 break
-
-            date = f'{year}-0{month}-{day} 00:00:00'
-            break
+            elif month > 10 and day < 10:
+                date = f'{year}-{month}-0{day} 00:00:00'
+                break
+            elif month < 10 and day < 10:
+                date = f'{year}-0{month}-0{day} 00:00:00'
+                break
+            else:
+                date = f'{year}-0{month}-{day} 00:00:00'
+                break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
     M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SWCMDID"""
@@ -188,6 +194,7 @@ def get_incmonth_data(comma, insertion):
 
 
 def get_min30_data(comma, insertion):
+    numbers = ""
     vmid = choose_vmid(comma, insertion)
     timer = get_datetime()
     year = timer["year"] + 2000
@@ -195,12 +202,22 @@ def get_min30_data(comma, insertion):
     day = timer["day"]
     if month > 10:
         date = f'{year}-{month}-{day} 00:00:00'
+    elif month > 10 and day < 10:
+        date = f'{year}-{month}-0{day} 00:00:00'
+    elif month < 10 and day < 10:
+        date = f'{year}-0{month}-0{day} 00:00:00'
     else:
         date = f'{year}-0{month}-{day} 00:00:00'
 
-    number = comma[11]
-    # number_end = number + comma[13]
-    query = f"""SELECT V{number} FROM L2HALF_HOURLY_ENERGY WHERE M_SWVMID={vmid} AND M_SDTDATE='{date}' AND
+    if comma[13] == 1:
+        numbers["values"] = f"V{comma[11]}"
+    else:
+        for i in range(comma[11], comma[11] + comma[13]):
+            numbers += f"V{i}, "
+
+    numbers = numbers[0:len(numbers) - 2]
+
+    query = f"""SELECT {numbers} FROM L2HALF_HOURLY_ENERGY WHERE M_SWVMID={vmid} AND M_SDTDATE='{date}' AND
      M_SWCMDID BETWEEN 13 AND 16"""
 
     return execute_query(query)
@@ -259,8 +276,15 @@ def get_day_data(comma, insertion):
             if month > 10:
                 date = f'{year}-{month}-{day} 00:00:00'
                 break
-            date = f'{year}-0{month}-{day} 00:00:00'
-            break
+            elif month > 10 and day < 10:
+                date = f'{year}-{month}-0{day} 00:00:00'
+                break
+            elif month < 10 and day < 10:
+                date = f'{year}-0{month}-0{day} 00:00:00'
+                break
+            else:
+                date = f'{year}-0{month}-{day} 00:00:00'
+                break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
     M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SWCMDID"""
@@ -280,6 +304,10 @@ def get_allen_data(comma, insertion):
 
     if month >= 10:
         date = f'{year}-{month}-{day} {hour}:{minute}:{second}'
+    elif month > 10 and day < 10:
+        date = f'{year}-{month}-0{day} {hour}:{minute}:{second}'
+    elif month < 10 and day < 10:
+        date = f'{year}-0{month}-0{day} {hour}:{minute}:{second}'
     else:
         date = f'{year}-0{month}-{day} {hour}:{minute}:{second}'
 
@@ -355,7 +383,7 @@ def get_response(cmd):
 
 
 if __name__ == "__main__":
-    # get_response(test_cmd(4))
+    # get_response(test_cmd(7))
     try:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
