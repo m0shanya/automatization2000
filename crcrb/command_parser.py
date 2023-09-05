@@ -102,19 +102,18 @@ def another_data(response, data, timer, cmd):
         response.append(struct.pack("!f", timer["month"])[1])
         response.append(struct.pack("!f", timer["year"])[1])
         if data == [] or None:
-            response += [0x00] * 4 * (cmd[9] // 4) * cmd[13]
+            response += [0x00] * cmd[9] * (cmd[9] // 4) * cmd[13]
         else:
             response += data
     else:
         if data == [] or None:
-            response += [0x00] + [cmd[5]] + [0xff] * 4 * (cmd[9] // 4) * cmd[13]
+            response += [0x00] + [cmd[5]] + [0xff] * cmd[9] * (cmd[9] // 4) * cmd[13]
         else:
             response += [0x00] + [cmd[5]] + data
 
     checker = 0x00 if data != [] or None else 0x01
     response += [checker]
-    response.extend([struct.pack("!f", timer["second"])[1],
-                     struct.pack("!f", timer["minute"])[1],
+    response.extend([struct.pack("!f", timer["minute"])[1],
                      struct.pack("!f", timer["hour"])[1],
                      struct.pack("!f", timer["day"])[1],
                      struct.pack("!f", timer["month"])[1],
@@ -141,24 +140,27 @@ def get_incday_data(comma, insertion):
             if day < i:
                 month = month - 1
                 delta = i - day
-                if month % 2 == 0:
-                    day = 30 - delta
-                elif month == 7:
+
+                if month == 7 or month == 8:
                     day = 31 - delta
+                elif month % 2 == 0:
+                    day = 30 - delta
                 elif month == 2:
                     day = 28 - delta
                 else:
                     day = 31 - delta
+            else:
+                day = day - i
 
             if month > 10:
-                date = f'{year}-{month}-{day - i} 00:00:00'
+                date = f'{year}-{month}-{day} 00:00:00'
                 break
 
-            date = f'{year}-0{month}-{day - i} 00:00:00'
+            date = f'{year}-0{month}-{day} 00:00:00'
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 5 AND 8 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
 
@@ -169,13 +171,10 @@ def get_incmonth_data(comma, insertion):
     timer = get_datetime()
     year = timer["year"] + 2000
     month = timer["month"]
-    day = timer["day"]
 
     for i in range(0, 10000):
 
         if comma[11] == i:
-            if day < i:
-                month = month - 1
             if month > 10:
                 date = f'{year}-{month - i}-01 00:00:00'
                 break
@@ -183,7 +182,7 @@ def get_incmonth_data(comma, insertion):
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 9 AND 12 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 9 AND 12 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
 
@@ -200,6 +199,7 @@ def get_min30_data(comma, insertion):
         date = f'{year}-0{month}-{day} 00:00:00'
 
     number = comma[11]
+    # number_end = number + comma[13]
     query = f"""SELECT V{number} FROM L2HALF_HOURLY_ENERGY WHERE M_SWVMID={vmid} AND M_SDTDATE='{date}' AND
      M_SWCMDID BETWEEN 13 AND 16"""
 
@@ -226,7 +226,7 @@ def get_month_data(comma, insertion):
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 21 AND 24 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 21 AND 24 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
 
@@ -245,7 +245,7 @@ def get_day_data(comma, insertion):
             if day < i:
                 month = month - 1
                 delta = i - day
-                if month == 8:
+                if month == 7 or month == 8:
                     day = 31 - delta
                 elif month % 2 == 0:
                     day = 30 - delta
@@ -253,15 +253,17 @@ def get_day_data(comma, insertion):
                     day = 28 - delta
                 else:
                     day = 31 - delta
+            else:
+                day = day - i
 
             if month > 10:
-                date = f'{year}-{month}-{day - i} 00:00:00'
+                date = f'{year}-{month}-{day} 00:00:00'
                 break
-            date = f'{year}-0{month}-{day - i} 00:00:00'
+            date = f'{year}-0{month}-{day} 00:00:00'
             break
 
     query = f"""SELECT M_SFVALUE FROM L3ARCHDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 17 AND 20 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
 
@@ -282,7 +284,7 @@ def get_allen_data(comma, insertion):
         date = f'{year}-0{month}-{day} {hour}:{minute}:{second}'
 
     query = f"""SELECT M_SFVALUE FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND M_STIME='{date}' AND
-    M_SWTID BETWEEN {comma[12]} and {comma[13]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SFVALUE DESC"""
+    M_SWTID BETWEEN {comma[12]} and {comma[13] - 1} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
 
@@ -353,24 +355,24 @@ def get_response(cmd):
 
 
 if __name__ == "__main__":
-    get_response(test_cmd(2))
-    # try:
-    #     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #
-    #     server.bind(("0.0.0.0", 5009))
-    #
-    #     server.listen(500)
-    #
-    #     while True:
-    #         client, address = server.accept()
-    #         print(address)
-    #         response = client.recv(1024)
-    #         print(response.hex())
-    #         command = []
-    #         for i in range(0, len(response), 1):
-    #             value = response[i:i + 1].hex()
-    #             command.append(int('0x' + value, 16))
-    #         print(command)
-    #         client.send(bytes(get_response(command)))
-    # except KeyboardInterrupt as e:
-    #     print(e)
+    # get_response(test_cmd(4))
+    try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        server.bind(("0.0.0.0", 5019))
+
+        server.listen(500)
+
+        while True:
+            client, address = server.accept()
+            print(address)
+            response = client.recv(1024)
+            print(response.hex())
+            command = []
+            for i in range(0, len(response), 1):
+                value = response[i:i + 1].hex()
+                command.append(int('0x' + value, 16))
+            print(command)
+            client.send(bytes(get_response(command)))
+    except KeyboardInterrupt as e:
+        print(e)
