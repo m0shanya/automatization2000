@@ -87,8 +87,24 @@ def execute_query(query):
         cur.execute(query)
 
         result = []
+        date = {"year": None,
+                "month": None,
+                "day": None,
+                "hour": None,
+                "minutes": None,
+                "seconds": []}
         for data in cur.fetchall():
             result += struct.pack("!f", data[0])
+            if len(data) == 2:
+                date["year"] = int(data[1].strftime("%Y")) - 2000
+                date["month"] = int(data[1].strftime("%m"))
+                date["day"] = int(data[1].strftime("%d"))
+                date["hour"] = int(data[1].strftime("%H"))
+                date["minutes"] = int(data[1].strftime("%M"))
+                date["seconds"].append(int(data[1].strftime("%S")))
+
+        result.append(date)
+
         return result
 
 
@@ -96,7 +112,7 @@ def another_data(response, data, timer, cmd):
     response = response[0:2]
 
     if cmd[5] == 0x85:
-        response = putting_allen_data(response, data, timer, cmd)
+        response = putting_allen_data(response, data, cmd)
     else:
         if data == [] or None:
             response += [0x00] + [cmd[5]] + [0xff] * 4 * cmd[9] * (cmd[9] // 4) * cmd[13]
@@ -117,19 +133,20 @@ def another_data(response, data, timer, cmd):
     return response
 
 
-def putting_allen_data(response, data, timer, cmd):
+def putting_allen_data(response, data, cmd):
     response += [0x00] + [cmd[5]]
-    data_copy = deepcopy(data)
+    data_copy = deepcopy(data[0:len(data) - 1])
+    date_copy = deepcopy(data[len(data) - 1])
     for i in range(0, cmd[9] * (cmd[9] // 4) * cmd[11]):
-        response.append(struct.pack("!i", timer["second"])[-1])
-        response.append(struct.pack("!i", timer["minute"])[-1])
-        response.append(struct.pack("!i", timer["hour"])[-1])
-        response.append(struct.pack("!i", timer["day"])[-1])
-        response.append(struct.pack("!i", timer["month"])[-1])
-        response.append(struct.pack("!i", timer["year"])[-1])
-        if data == [] or None:
-            response += [0xff] * 4
+        if data[0:len(data) - 1] == [] or None:
+            response += [0xff] * 10
         else:
+            response.append(struct.pack("!i", date_copy["seconds"][i])[-1])
+            response.append(struct.pack("!i", date_copy["minutes"])[-1])
+            response.append(struct.pack("!i", date_copy["hour"])[-1])
+            response.append(struct.pack("!i", date_copy["day"])[-1])
+            response.append(struct.pack("!i", date_copy["month"])[-1])
+            response.append(struct.pack("!i", date_copy["year"])[-1])
             response += data_copy[0:4]
             data_copy = data_copy[4:len(data_copy)]
 
@@ -309,25 +326,23 @@ def get_allen_data(comma, insertion):
     year = timer["year"] + 2000
     month = timer["month"]
     day = timer["day"]
-    hour = timer["hour"]
-    minute = timer["minute"]
-    second = timer["second"]
 
-    # if month >= 10:
-    #     date = f'{year}-{month}-{day} {hour}:{minute}:{second}'
-    # elif month > 10 and day < 10:
-    #     date = f'{year}-{month}-0{day} {hour}:{minute}:{second}'
-    # elif month < 10 and day < 10:
-    #     date = f'{year}-0{month}-0{day} {hour}:{minute}:{second}'
-    # else:
-    #     date = f'{year}-0{month}-{day} {hour}:{minute}:{second}'
+    if month >= 10:
+        date = f'{year}-{month}-{day}'
+    elif month > 10 and day < 10:
+        date = f'{year}-{month}-0{day}'
+    elif month < 10 and day < 10:
+        date = f'{year}-0{month}-0{day}'
+    else:
+        date = f'{year}-0{month}-{day}'
+
     if comma[10] != 0:
-        query = f"""SELECT M_SFVALUE, cast (M_STIME as date) FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND cast (M_STIME as date)='2023-08-29' AND
+        query = f"""SELECT M_SFVALUE, M_STIME FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND cast (M_STIME as date)='{date}' AND
         M_SWTID BETWEEN {comma[10]} and {comma[11]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SWCMDID"""
 
         return execute_query(query)
 
-    query = f"""SELECT M_SFVALUE, cast (M_STIME as date) FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND cast (M_STIME as date)='2023-08-29' AND
+    query = f"""SELECT M_SFVALUE, M_STIME FROM L3CURRENTDATA WHERE M_SWVMID={vmid} AND cast (M_STIME as date)='{date}' AND
             M_SWTID={comma[10]} AND M_SWCMDID BETWEEN 1 AND 4 ORDER BY M_SWCMDID"""
 
     return execute_query(query)
@@ -399,24 +414,24 @@ def get_response(cmd):
 
 
 if __name__ == "__main__":
-    get_response(test_cmd(7))
-    # try:
-    #     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #
-    #     server.bind(("0.0.0.0", 5009))
-    #
-    #     server.listen(500)
-    #
-    #     while True:
-    #         client, address = server.accept()
-    #         print(address)
-    #         response = client.recv(1024)
-    #         print(response.hex())
-    #         command = []
-    #         for i in range(0, len(response), 1):
-    #             value = response[i:i + 1].hex()
-    #             command.append(int('0x' + value, 16))
-    #         print(command)
-    #         client.send(bytes(get_response(command)))
-    # except Exception as e:
-    #     print(e)
+    # get_response(test_cmd(7))
+    try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        server.bind(("0.0.0.0", 5009))
+
+        server.listen(500)
+
+        while True:
+            client, address = server.accept()
+            print(address)
+            response = client.recv(1024)
+            print(response.hex())
+            command = []
+            for i in range(0, len(response), 1):
+                value = response[i:i + 1].hex()
+                command.append(int('0x' + value, 16))
+            print(command)
+            client.send(bytes(get_response(command)))
+    except Exception as e:
+        print(e)
